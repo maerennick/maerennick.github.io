@@ -1,0 +1,18 @@
+---
+title: "Mae Rennick"
+image: "mae.jpg"
+links:
+  - label: LinkedIn
+    url: "https://linkedin.com/"
+  - label: Twitter
+    url: "https://twitter.com/MaeRennick"
+  - label: GitHub
+    url: "https://github.com/maerennick/"
+  - label: Email
+    url: "mailto:maerennick@ucsb.edu"
+output:
+  postcards::jolla
+site: distill::distill_website
+---
+ 
+I am PhD student at the University of Santa Barbara California in the Froehlich Lab studying sustainable seafood systems.
