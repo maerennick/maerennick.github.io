@@ -1,6 +1,6 @@
 ---
 title: "Mae Rennick"
-image: "mae.jpg"
+image: "mae.JPG"
 links:
   - label: LinkedIn
     url: "https://linkedin.com/"
