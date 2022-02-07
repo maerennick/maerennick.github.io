@@ -1,10 +1,79 @@
 ---
-title: "About this site"
+title: "About Me"
 description: |
-  Some additional details about the website
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
+
+### RESEARCH INTERESTS
+Data science; aquaculture; fisheries; sustainable food systems; marine ecology; ecological modeling.
+
+### AWARDS AND FUNDING
+
+2021 Ocean Protection Council/California Sea Grant: California Aquaculture Action Plan
+
+2021 Santa Barbara Scholarship Award
+
+2020 Ocean Protection Council/California Sea Grant: California Aquaculture Action Plan
+
+2020 National Sea Grant: Hidden Interactions of Marine Aquaculture & Fisheries in the US
+
+2020 Block Grant Fellowship- University of California, Santa Barbara EEMB Department
+
+2020 Santa Barbara Scholarship Award
+
+2019 National Sea Grant: Hidden Interactions of Marine Aquaculture & Fisheries in the US
+
+### EDUCATION
+
+##### University of California, Santa Barbara- Santa Barbara, CA                                      
+PhD student
+Department: Ecological and Evolutionary Marine Biology
+Principal Investigator: Dr. Halley Froehlich
+
+##### San Diego State University- San Diego, CA                                                              
+Biology
+
+### WORK EXPERIENCE
+
+##### Stier Lab: University of California, Santa Barbara- Goleta, CA                                      
+Post-Baccalaureate Intern                                     	                                       	     
+
+•	Leading research investigating how the size and density of purple and red urchins and available detrital supply of kelp influence herbivory pressure of urchins in the Santa Barbara Channel over time. 
+
+•	Co-contributor in design, and data acquisition and compilation, for a global coral cover time series database. 
+
+##### Froehlich Lab: University of California, Santa Barbara- Goleta, CA                                 
+Volunteer/Lab Technician II                                                                                                
+
+•	Collaboration with the Froehlich Lab on a National Sea Grant Project analyzing 24 coastal states’ adoption of marine aquaculture under changing policy and fisheries’ conditions.
+
+### CURRENT WORKING GROUPS
+
+•	Froehlich Lab: https://froehlichlab.eemb.ucsb.edu
+
+•	Conservation Aquaculture Research Team (CART):  http://www.cart-sci.org
+
+•	OPC- Aquaculture Action Plan Development Team
+
+### PUBLICATIONS
+
+•	Lester, Sarah & Gentry, Rebecca & Lemoine, Hayley & Froehlich, Halley & Gardner, Luke & Rennick, Mae & Ruff, Elizabeth & Thompson, Kimberly. (2021). Diverse state‐level marine aquaculture policy in the United States: Opportunities and barriers for industry development. Reviews in Aquaculture. 
+
+•	Detrital supply suppresses overgrazing to maintain healthy kelp forest ecosystems – accepted at Ecology
+
+•	California Aquaculture in the changing food seascape- In Review
+
+•	Piecing together the data of the US marine aquaculture puzzle – In Review
+
+•	Letter to UCSB EEMB Faculty with Demands Toward Racial Equity
+
+### CERTIFICATIONS
+
+•	AAUS Scientific Diver Certification 
+
+•	Multi-Subject Teaching Credential
+
 

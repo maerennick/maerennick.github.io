@@ -1,0 +1,19 @@
+[
+  {
+    "path": "posts/2022-02-07-welcome/",
+    "title": "Welcome",
+    "description": "Welcome to the website",
+    "author": [
+      {
+        "name": "Mae Rennick",
+        "url": {}
+      }
+    ],
+    "date": "2022-02-07",
+    "categories": [],
+    "contents": "\n\n\n\n",
+    "preview": {},
+    "last_modified": "2022-02-07T11:17:24-08:00",
+    "input_file": {}
+  }
+]
