@@ -1,5 +1,6 @@
 name: "."
 title: "mfeo"
+theme: postcards.css
 description: |
   mfeo
 output_dir: "docs"

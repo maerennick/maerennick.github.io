@@ -13,6 +13,7 @@ links:
 output:
   postcards::jolla
 site: distill::distill_website
+theme: postcards.css
 ---
  
 I am PhD student at the University of Santa Barbara California in the Froehlich Lab studying sustainable seafood systems.

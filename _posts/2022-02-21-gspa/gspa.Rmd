@@ -1,0 +1,26 @@
+---
+title: "ESA Gradaute Student Policy Award"
+description: |
+  Going to the Hill: Graduate student Mae Rennick chosen to receive award from the Ecological Society of America.
+author:
+  - name: Mae Rennick
+    url: {https://www.news.ucsb.edu/2022/020550/going-hill}
+date: 2022-02-21
+output:
+  distill::distill_article:
+    self_contained: false
+preview: congress.png
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+![](images/congress.png)
+
+Picture of the California GSPA recipient group meeting with Samantha Price from Representative Carbajal's office.
+
+![](images/article-02.jpg)
+
+![](images/article_2-02.png)

@@ -1,19 +1,21 @@
 [
   {
-    "path": "posts/2022-02-07-welcome/",
-    "title": "Welcome",
-    "description": "Welcome to the website",
+    "path": "posts/2022-02-21-gspa/",
+    "title": "ESA Gradaute Student Policy Award",
+    "description": "Going to the Hill: Graduate student Mae Rennick chosen to receive award from the Ecological Society of America.",
     "author": [
       {
         "name": "Mae Rennick",
-        "url": {}
+        "url": {
+          "https://www.news.ucsb.edu/2022/020550/going-hill": {}
+        }
       }
     ],
-    "date": "2022-02-07",
+    "date": "2022-02-21",
     "categories": [],
-    "contents": "\n\n\n\n",
+    "contents": "\n\nPicture of the California GSPA recipient group meeting with Samantha Price from Representative Carbajal’s office.\n\n\n\n\n\n",
     "preview": {},
-    "last_modified": "2022-02-07T11:17:24-08:00",
+    "last_modified": "2022-02-21T11:35:43-08:00",
     "input_file": {}
   }
 ]
