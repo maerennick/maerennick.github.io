@@ -1,5 +1,5 @@
 ---
-title: "Project & Publication Portfolio"
+title: "Publications"
 output:
   postcards::trestles
 ---

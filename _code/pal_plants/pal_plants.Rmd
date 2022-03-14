@@ -1,0 +1,346 @@
+---
+title: "Palmetto Plant Analysis"
+author: "Mae Rennick"
+output: 
+  distill::distill_article:
+    self_contained: false
+    toc: true
+    toc_float: true
+    theme: yeti
+    highlight: tango
+    code_folding: hide
+---
+
+## Overview 
+
+Overall, the goal of this assignment is— using the Florida palmetto data (palmetto.csv)— to use binary logistic regression to test feasibility of using variables plant height (height), canopy length (length), canopy width (width), and number of green leaves (green_lvs) to classify whether a palmetto is species Serenoa repens or Sabal etonia.
+
+Specific goals to be addressed:
+
+-determine the probability of a plant being either Serenoa repens or Sabal etonia based on several predictor variables.  Perform the analysis twice, using cross validation to compare two models.
+
+-create a finalized table containing the binary logistic regression model results (at least coefficients, standard errors for the coefficients, and information for significance 
+
+-evaluate how successfully this model would “classify” a plant as the correct species, using a 50% cutoff
+
+
+## Data Summary and citation
+
+Survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017, ongoing at 5-year intervals.Annual data measures included height, canopy length and width (all in cm), number of new and green leaves and flowering scapes. 
+
+Data citation: Abrahamson, W.G. 2019. Survival, growth and biomass estimates of two dominant palmetto species of south-central Florida from 1981 - 2017, ongoing at 5-year intervals ver 1. Environmental Data Initiative. https://doi.org/10.6073/pasta/f2f96ec76fbbd4b9db431c79a770c4d5
+
+## Analysis
+
+```{r setup, include=TRUE, warning=FALSE, message= FALSE}
+knitr::opts_chunk$set(echo = TRUE, message= FALSE, warning= FALSE)
+
+#load necessary packages
+
+library(tidyverse)
+library(here)
+library(lubridate)
+library(GGally)
+library(broom)
+library(jtools)
+library(caret)
+library(AICcmodavg)
+library(equatiomatic)
+library(caret)
+library(kableExtra)
+library(cowplot)
+
+
+```
+
+
+```{r}
+
+palmetto_data<- read_csv(here("_code","pal_plants","data", "palmetto.csv")) %>% 
+  mutate(species_name= case_when(species== 1 ~ "rep", 
+                             species== 2 ~ "eto"))
+
+
+```
+
+#### Exploring the differences in height, canopy length, canopy width, and green leaves for the two species: Serenoa repens and Sabal etonia
+
+
+
+```{r}
+
+## data exploration
+
+exploration_graph<- palmetto_data %>% 
+  select(species_name, height:green_lvs) %>% 
+  ggpairs(aes(color=species_name))
+
+## results: fairly similar in height and width, eto has a little more length, and rep has more green leaves on average
+
+
+```
+
+
+```{r}
+
+# with both species, as length of the canopy increases, so does the width, but there appears to be no effect on height. appears to occupy the same span of lengths and widths
+
+palmetto_data_g <- palmetto_data %>% 
+  mutate(species_name = recode(species_name, 'eto' = "Sabal etonia", "rep" = "Serenoa repens"))
+
+eto<- subset(palmetto_data_g, species_name =='Sabal etonia')
+rep<- subset(palmetto_data_g, species_name =='Serenoa repens')
+
+p1 <- ggplot(data= palmetto_data_g, aes(x=length, y= width))+
+  geom_point(aes(color = height))+
+  facet_wrap(~ species_name)+
+  labs(y= "Width (cm)", 
+       x= "Length of canopy (cm)",
+       color = "Height (cm)")+
+  theme_minimal()+
+  scale_color_gradient(low="#CFDBCD", high="#738678")+
+  theme(legend.position="bottom")
+  
+
+p2<- ggplot(data= palmetto_data_g, aes(x=width))+
+  geom_histogram(color="black", fill='#186b61', binwidth = 30)+
+  facet_wrap(~ species_name)+
+  geom_histogram(data = eto, color="black",fill = "#a3cac9", binwidth = 30)+
+  labs(y= "Count (number of plants)", 
+       x= "Width (cm)")+
+  theme_minimal()+
+  theme(legend.title = element_blank())+
+  scale_fill_discrete(labels= c("Sabal etonia", "Serenoa repens"))
+
+plot_grid(p1, p2, labels = c('A', 'B'),ncol = 1)
+
+```
+
+#### FIG 1: Exploring the relationship between length (cm), width (cm), and height (cm) of two palmetto plants (data from Abrahamson 2019). A) shows the relationship between length and width with the added context of height across the two species: Sabal etonia and Sernoa repens. B) shows the distribution of width of canopy between the two species. 
+
+Based on this initial data exploration, we find a positive relationship between width of canopy (cm) and length of canopy (cm) for both species. The slope and range of values seem to be similar. However,  the average width of Sabal etonia appears to become lower than serenoa repens as the length of the canopy increases. Height for both species tends to follow the gradient, with wider and longer canopies having greater height. To further verify this finding, the histogram shows that the distribution of widths between species is similar, and close to normally distributed around a similar mean value with a slight right skew. 
+
+
+```{r}
+
+ggplot(data= palmetto_data_g, aes(x=green_lvs, y= height, width=1))+
+  geom_bar(stat="identity", color = "#7D8054")+
+  facet_wrap(~ species_name)+
+  #geom_bar(data = eto, color="black",fill = "#a3cac9", binwidth = 30)+
+  labs(y= "Height (cm)", 
+       x= "Number of green leaves")+
+  theme_minimal()+
+  theme(legend.title = element_blank())+
+  scale_fill_discrete(labels= c("Sabal etonia", "Serenoa repens"))
+
+```
+
+#### FIG 2: Exploring the relationship between height (cm), and number of green leaves found on two palmetto plants between 1981 and 2017 (data from Abrahamson 2019).
+
+Upon further investigation, green leaves and height are the predictor variables most likely to help classify species correctly as they are disparate between the two species. On average, the tallest trees have a median value of green leaves. Eto can be much taller than Rep, but on average, Rep has many more green leaves per individual
+
+
+### Logistic Regression
+
+Performing binary logistic regression to determine the probability of a plant being either Serenoa repens or Sabal etonia based on several predictor variables for two models: 
+
+- Log odds of plant type using plant height, canopy length, canopy width and green leaves as predictor variables.
+
+- Log odds of plant type using plant height, canopy width and green leaves as predictor variables.
+
+
+```{r}
+############################################################################################################## Model 1  ################################################################################################
+
+palmetto_sub <- palmetto_data %>% 
+  select(species, height:green_lvs) %>%
+  drop_na() %>% 
+  janitor::clean_names()
+
+palmetto_sub$species <- factor(palmetto_sub$species)
+
+f1<- species ~ green_lvs + height + length + width
+
+rep_blr1<- glm(formula = f1, 
+               data = palmetto_sub, 
+               family= 'binomial')
+
+#summary(rep_blr1)
+# AIC 5194.6
+# REP is the reference level
+#makes sense, green leaves will go down for eto, but height shouldnt go down for eto
+
+
+blr1_fitted <- rep_blr1 %>% 
+  broom:: augment(type.predict = 'response')
+
+# the fitted values are pretty accurate
+
+##plot the probability
+
+#ggplot(data= blr1_fitted, aes(x=length, y= .fitted))+
+  #geom_point(aes(color= width, shape=species))
+
+#effect_plot(rep_blr1, 
+            #pred=height, 
+            #interval= TRUE, 
+            #y.label = "probability of REP")
+
+## predict the species based on new values 
+
+
+
+############################################################################################################## Model 2  ################################################################################################
+
+f2<- species ~ green_lvs + height + width
+
+rep_blr2<-glm(formula = f2, 
+               data = palmetto_sub, 
+               family= 'binomial') 
+
+#summary(rep_blr2)
+# AIC 5987.5 (larger than model 1)
+# REP is the reference level
+#passes logic test
+
+#effect_plot(rep_blr2, 
+            #pred=height, 
+            #interval= TRUE, 
+           # y.label = "probability of REP")
+
+# no divide, therefore the effects might not be as strong
+
+
+```
+
+
+### Model Selection 
+
+```{r}
+
+#AICcmodavg::aictab(list(rep_blr1, rep_blr2))
+ ## Model 1 has a much lower AIC value 
+
+```
+
+```{r}
+
+## Repeated 10-fold cross-validation, using prediction accuracy as our metric 
+
+tr_ctrl <- trainControl(method = 'repeatedcv', number = 10, repeats =10)
+
+model1<- train(f1, data = palmetto_sub, 
+               method = 'glm', family = 'binomial', trControl = tr_ctrl)
+#model1
+#accuracy= 92%
+
+model2<- train(f2, data = palmetto_sub, 
+               method = 'glm', family = 'binomial', trControl = tr_ctrl)
+#model2
+#Accuracy = 89%
+
+
+
+```
+
+Based on the results of the cross validation, model 1 performs better at classification. Across 10 repeats of 10 folds, model 1 performed with an average accuracy of 92% and model 2 only performed with an average accuracy of 90%. Further, model 1 has a lowed AIC value than model 2, which further implies that model 1 is the better performing model. 
+
+
+
+```{r}
+## train the data to model 1
+
+final_mdl <- glm(formula = f1, 
+               data = palmetto_sub, 
+               family= 'binomial')
+
+#summary(final_mdl)
+
+table_final<- broom::tidy(final_mdl) %>% 
+  select(-p.value) %>% 
+  mutate("Significance" = "p<0.001") %>% 
+  mutate("Coefficient" = round(estimate,2)) %>% 
+  mutate("Standard Error" = round(std.error, 4)) %>%
+  select(-std.error) %>% 
+  select(-statistic) %>%
+  select(-estimate) %>% 
+  rename("Parameter" = term) %>% 
+  filter(Parameter != "(Intercept)")
+  
+```
+
+##### Table 1: Table containing the binary logistic regression model results:  coefficients, standard errors for the coefficients, and significance.
+
+```{r, echo= FALSE}
+
+kable(table_final, caption = "Data from Abrahamson 2019") %>% 
+  kable_styling(font_size = 8, full_width = T)
+
+```
+
+
+
+```{r}
+
+
+n_folds <- 10
+folds <- rep(1:n_folds, length.out = nrow(palmetto_sub))
+p_kfold <- palmetto_sub %>%
+  mutate(fold = sample(folds, size = n(), replace = FALSE))
+ 
+pred_acc <- function(x, y) {
+  accurate <- ifelse(x == y, 1, 0)
+  return(mean(accurate, na.rm = TRUE))
+}
+ 
+results_df <- data.frame()
+for(i in 1:n_folds) {kfold_test <- p_kfold %>%
+    filter(fold == i)
+  kfold_train <- p_kfold %>%
+    filter(fold != i)
+  
+  kfold_blr1 <- glm(f1, data = kfold_train, family = 'binomial')
+  
+  kfold_blr2 <- glm(f2, data = kfold_train, family = 'binomial')
+  
+  kfold_pred <- kfold_test %>%
+    mutate(blr1 = predict(kfold_blr1, kfold_test, type = 'response'),
+           blr2 = predict(kfold_blr2, ., type = 'response')) %>%
+    mutate(pred1 = ifelse(blr1 > 0.50, '2', '1'),
+           pred2 = ifelse(blr2 > 0.50, '2', '1'))
+  
+  kfold_accuracy <- kfold_pred %>%
+    summarize(blr1_acc = pred_acc(species, pred1),
+              blr2_acc = pred_acc(species, pred2))
+  
+  results_df <- bind_rows(results_df, kfold_accuracy)
+}
+ 
+results<- results_df %>%
+  summarize(blr1_acc = mean(blr1_acc),
+            blr2_acc = mean(blr2_acc)) %>%
+  rename("Model 1" = "blr1_acc") %>%
+  rename("Model 2" = "blr2_acc") %>% 
+  gather(Model, Accuracy, "Model 1":"Model 2", factor_key=TRUE) %>% 
+  mutate("Correct" = round(Accuracy*12460, 0)) %>%
+  mutate("Incorrect"= round((1-Accuracy)*12460, 0)) %>%
+  mutate("Percent Accuracy"=round((Accuracy)*100,0)) %>% 
+  select(-"Accuracy")
+
+```
+
+##### Table 2 : Model results and accuracy. With a 50% cuttoff, Correct refers to how many many plants in the original dataset would be correctly classified. Incorrect refers to how many were incorrectly classified by the model. Percent Accuracy refers to percentage of plants correctly classified by each model.
+
+```{r, echo=FALSE}
+
+kable(results, caption = "Data from Abrahamson 2019") %>% 
+  kable_styling(font_size = 8, full_width = T)
+
+
+```
+
+
+## Conclusion
+
+Overall, this study explores two binary logistic models in predicting plant species based on key characteristics, including: height, canopy width, canopy length and green leaves present. Model 1, including considerations for all key characteristics was the best performing model which we deciphered through AIC comparison and 10-fold cross validation. Overall, the model chosen was accurate roughly 92% of the time. 
+

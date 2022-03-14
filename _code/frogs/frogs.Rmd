@@ -1,0 +1,113 @@
+---
+title: "Yellow-legged frog abundances"
+author: "Mae Rennick"
+output: 
+  distill::distill_article:
+    self_contained: false
+    toc: true
+    toc_float: true
+    theme: yeti
+    highlight: tango
+    code_folding: hide
+---
+
+## Overview 
+
+The goal of these taks are to create two data visualizations put together in a compunded figure using `cowplot()` by exploring anphibian abundance data recorded by the  the Sierra Lakes Inventory Project.
+
+## Data Summary and citation
+From the Environmental Data Initiative repository: “The Sierra Lakes Inventory Project (SLIP) was a research endeavor that ran from 1995-2002 and has supported research and management of Sierra Nevada aquatic ecosystems and their terrestrial interfaces. We described the physical characteristics of and surveyed aquatic communities for >8,000 lentic water bodies in the southern Sierra Nevada, including lakes, ponds, marshes, and meadows.
+
+
+Knapp, R.A., C. Pavelka, E.E. Hegeman, and T.C. Smith. 2020. The Sierra Lakes Inventory Project: Non-Native fish and community composition of lakes and ponds in the Sierra Nevada, California ver 2. Environmental Data Initiative. https://doi.org/10.6073/pasta/d835832d7fd00d9e4466e44eea87fab3
+
+
+## Setup
+
+```{r setup, include=TRUE, warning= FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning= FALSE, message=FALSE)
+
+#load necessary packages
+
+library(tidyverse)
+library(here)
+library(lubridate)
+library(cowplot)
+
+
+```
+
+## Construction of Graph A
+
+Data wrangling and plot: mountain yellow-legged frog (Rana muscosa) count each year across all water bodies, by life stage (excluding egg mass)
+
+```{r}
+
+## read in the data using here()
+
+frog_data<- read_csv(here("_code", "frogs", "data", "sierra_amphibians.csv"))
+
+RAMU_data<- frog_data %>% 
+  filter(amphibian_species== "RAMU") %>% 
+  filter(amphibian_life_stage != "EggMass") %>% 
+  select(-lake_id) %>% 
+  select(-amphibian_location) %>%
+  mutate(survey_date= mdy(survey_date)) %>% 
+  mutate(year = year(survey_date)) %>% 
+  mutate(count= 1) %>% 
+  group_by(year, amphibian_life_stage) %>% 
+  mutate(total= sum(count)) %>% 
+  ungroup() %>% 
+  summarise(year, amphibian_life_stage, total)
+
+p1<- ggplot(RAMU_data, aes(x= year, fill= amphibian_life_stage))+
+  geom_histogram()+
+  labs(y= "total yellow-legged frog counts",
+       fill= "Amphibian Life Stage")+
+  scale_fill_manual(values = c("dark green", "light green", "brown"))+
+  theme_minimal()+ 
+  theme(legend.position= "bottom", legend.title = element_blank())
+
+
+```
+
+## Construction of Graph B
+
+Data wrangling and plot: containing total counts (over all years of the study) of combined adult and subadult endangered mountain yellow-legged frogs (Rana muscosa) observed in the 5 lakes with the greatest total observed counts
+
+
+```{r}
+
+RAMU_data_adult<- frog_data %>% 
+  filter(amphibian_species== "RAMU") %>%
+  filter(amphibian_life_stage== "SubAdult"|  amphibian_life_stage=="Adult") %>%
+  mutate(count=1) %>% 
+  group_by(lake_id) %>% 
+  summarize(frog_count = n()) %>% 
+  slice_max(frog_count, n = 5) %>% 
+  arrange(-frog_count) %>% 
+  mutate(lake= "Lake") %>% 
+  relocate(lake) %>% 
+  unite("lake_id", lake:lake_id, sep = " ")
+
+
+
+p2<- ggplot(data = RAMU_data_adult, aes(x = fct_reorder(lake_id, frog_count), y = frog_count, fill= lake_id)) +
+  geom_col() +
+  labs(y = "total yellow-legged frog counts (adult + subadult)", x = "Lake ID") +
+  theme_minimal()+
+  scale_fill_manual(values=c("#011f4b", "#03396c", "#005b96", "#6497b1", "#b3cde0"))+
+  theme(legend.position= 'none', axis.text.x = element_text(angle = 90))
+
+
+```
+
+## Combined Plots
+
+```{r}
+
+plot_grid(p1, p2, labels = c('A', 'B'), label_size = 12)
+
+```
+
+###### Figure 1: Abundances of Mountain yellow-legged frog (Rana muscosa) recorded by the The Sierra Lakes Inventory Project 1995-2002 (Knapp et al. 2020). A) counts of mountian yellow-legged frog each year across all water bodies, by life stage (excluding egg mass) B) Counts of adult and subadult mountian yellow-legged frog observed in the 5 lakes with the greatest total observed counts. All data from Knapp et al. 2020.

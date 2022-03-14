@@ -1,0 +1,118 @@
+---
+title: "Oil Spill Map"
+author: "Mae Rennick"
+output: 
+  distill::distill_article:
+    self_contained: false
+    toc: true
+    toc_float: true
+    theme: yeti
+    highlight: tango
+    code_folding: hide
+    
+---
+### Overview 
+
+
+The purpose of this project is to explore the spatial breadth of oil spills in California. We will do this by making an exploratory interactive map in tmap showing the location of oil spill events included in the data (cited below), and making a finalized static choropleth map in ggplot in which the fill color for each county depends on the count of inland oil spill events by county for the 2008 oil spill data. 
+
+### Data Summary and Citation: 
+
+Acs described by the California Department of Fish and Wildlife: "The database system is designed to provide OSPR with quantified statistical data on oil spill response by OSPR field responders. The OSPR Incident Tracking Database System project was initiated to provide OSPR with oil spill incident data for statistical evaluation and justification for program planning, drills and exercise training and development, legislative analysis, budget preparation, to inform and educate the public and analyze OSPRs overall spill preparedness and response performance. An "incident", for purposes of this database, is "a discharge or threatened discharge of petroleum or other deleterious material into the waters of the state.""
+
+Citation: 
+California Department of Fish and Wildlife, Office of Spill Prevention and Response. Oil Spill Incident Tracking [ds394] (2009).
+
+
+```{r setup, include=TRUE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(here)
+library(broom)
+
+# Spatial data packages
+library(sf)
+library(tmap)
+
+library(viridis)
+
+
+```
+
+```{r}
+## Read in the Data
+
+ca_counties_sf <- read_sf(here("_code","oil_spill","ca_counties"), layer = "CA_Counties_TIGER2016") %>% 
+  janitor::clean_names() 
+
+# Check the projection:
+#st_crs(ca_counties_sf)
+
+
+ca_oil <- read_sf(here("_code","oil_spill","oil_spill"), layer = "ds394") %>% 
+  janitor::clean_names()
+
+# Check the projection:
+#st_crs(ca_oil)
+
+ca_oil_sf <- st_transform(ca_oil, st_crs(ca_counties_sf))
+
+
+
+```
+
+#### Interactive Tmap 
+
+```{r}
+
+
+# Set the viewing mode to "interactive":
+tmap_mode(mode = "view")
+
+tm_shape(ca_oil_sf) +
+  tm_dots(col = 'black', legend.show = FALSE)
+
+```
+
+##### Figure 1: Interactive Tmap representin number and location of oil spills (represented by black dots) across california based off the CDFW 2008 OIl Spill data. 
+
+
+#### Finalized static choropleth map 
+
+```{r}
+
+## in ggplot in which the fill color for each county depends on the count of inland oil spill events by county for the 2008 oil spill data
+
+#group by county name 
+
+
+ca_oilnum<- ca_counties_sf %>% 
+  st_join(ca_oil_sf)
+
+ca_oil_county<- ca_oilnum %>% 
+  filter(inlandmari=="Inland") %>% 
+  group_by(localecoun) %>% 
+  summarize(n_records = sum(!is.na(dfgcontrol)))
+
+
+
+ggplot(data = ca_oil_county) +
+  geom_sf(aes(fill = n_records), color = "white", size = 0.1) +
+  scale_fill_gradient(low = "#56B1F7",
+  high = "#132B43",
+  space = "Lab",
+  na.value = "grey50",
+  guide = "colourbar",
+  aesthetics = "colour") +
+  theme_minimal() +
+  labs(fill = "Number of Inland Oil Spills")
+
+
+```
+
+##### Figure 2: Static choropleth map depicting number of oil spills by county from the 2008 oil spill data. 
+
+### Conclusions
+
+Overall, there were 3237 observed oil spills observed across all CA counties (both inland and offshore). Los Angeles had the highest cumulative Inland Oils spills (n=340) and Alpine, Inyo, Kings and Sierra Counties had the lowest with only had 1 inland oil spill in 2008. Overall, there is a large spread of number oil spills between counties, but most counties were below 100. 
+

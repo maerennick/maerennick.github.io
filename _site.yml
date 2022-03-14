@@ -12,6 +12,8 @@ navbar:
       href: about.html
     - text: "Blog"
       href: blog.html
-    - text: "Portfolio"
+    - text: "Publications"
       href: portfolio.html
+    - text: "Coding Porfolio"
+      href: coding_portfolio.html
 output: distill::distill_article
