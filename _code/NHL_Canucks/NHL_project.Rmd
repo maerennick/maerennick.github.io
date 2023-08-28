@@ -1,0 +1,602 @@
+---
+title: "Vancouver Canucks Project"
+author: "Mae Rennick"
+date: "2023-07-31"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: yeti
+    highlight: tango
+    code_folding: hide
+editor_options: 
+  chunk_output_type: console
+---
+
+This project looks at the trends and successes of the Vancouver Canucks National Hockey League (NHL) team through time. 
+
+This report includes three parts:
+
+1. Statistics through time at the team-level 
+
+2. Modeling Vancouver Canucks powerplay success through time
+
+3. Random Forest analysis to identify most influential metrics in determining whether a goal is scored in a given scenario, and determine the best shooter on the Canucks
+
+
+Data summary and citation:
+
+"NHL Team Statistics." NHL.com. Nation Hockey League, n.d. Web. July 2013. <http://www.nhl.com/>.
+
+"NHL Team Stats." Hockey Stats. Hockeyanalysis.com, 28 Apr. 2013. Web. July 2013. <http://stats.hockeyanalysis.com/teamstats.php?disp=1&db=201213&sit=5v5close&sort= PDO&sortdir=DESC>.
+
+MoneyPuck. https://moneypuck.com/data.htm 
+
+
+### Canucks Team Statistics
+
+This report will be using the following metrics to measure team success through time 2008-2023):
+- Time on Ice (TOI)
+- Games Played (GP)
+- Corsi For = Shot attempts for at even strength: Shots + Blocks + Misses (CF)
+- Corsi Against = Corsi score of the opposing team (CA)
+- Goals For (GF)
+- Penalty minutes served (PENT)
+- Penalty minutes drawn (PEND)
+- Saves = blocked shot attempts for (SAVES)
+- Rebounds (REB)
+- Shots (SHOTS)
+
+#### Data Wrangling
+
+```{r setup, include=TRUE, warning= FALSE, message= FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning= FALSE, message= FALSE)
+
+
+# Packages ----
+library(tidyverse)    # For data manipulation, plotting, etc. 
+library(here)    # For reproducible data importation 
+library(janitor)      # For text data manipulation
+library(httr)         # To import data on github
+library(TExPosition)  # PCA tools
+library(ggrepel)      # Plotting tool for ggplot2
+library(kableExtra)   # HTML table tools
+library(RColorBrewer) # plotting colors
+library(gridExtra)    # Plotting tools
+library(dplyr)
+library(magrittr)
+library(corrplot)
+library(tidyr)
+library(ranger)
+library(vip)
+library(caret)
+library(broom)
+
+
+# Custom functions ----
+# nice_table() simplifies the printing of HTML tables using kable
+nice_table <- function(x){
+  
+  kable(x) %>%
+    kable_styling(bootstrap_options = c('striped', 'hover', 'responsive', 'condensed'))
+  
+}
+
+# Color palettes ----
+rdgy <- brewer.pal(n = 11, name = "RdGy") # display.brewer.pal(11, "RdGy")
+
+# ggplot2 finishings
+pca_furnish <- theme_classic() +
+  theme(axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank()
+        )
+
+
+```
+
+ 
+```{r}
+
+## Import Data
+
+canucks_2009<- read_csv(here("MP_data", "skaters_2008_2009.csv")) %>% 
+  mutate(season= "2008-2009")
+canucks_2010<- read_csv(here("MP_data", "skaters_2009_2010.csv")) %>% 
+  mutate(season= "2009-2010")
+canucks_2011<- read_csv(here("MP_data", "skaters_2010_2011.csv")) %>% 
+  mutate(season= "2010-2011")
+canucks_2012<- read_csv(here("MP_data", "skaters_2011_2012.csv")) %>% 
+  mutate(season= "2011-2012")
+canucks_2013<- read_csv(here("MP_data", "skaters_2012_2013.csv")) %>% 
+  mutate(season= "2012-2013")
+canucks_2014<- read_csv(here("MP_data", "skaters_2013_2014.csv")) %>% 
+  mutate(season= "2013-2014")
+canucks_2015<- read_csv(here("MP_data", "skaters_2014_2015.csv")) %>% 
+  mutate(season= "2014-2015")
+canucks_2016<- read_csv(here("MP_data", "skaters_2015_2016.csv")) %>% 
+  mutate(season= "2015-2016")
+canucks_2017<- read_csv(here("MP_data", "skaters_2016_2017.csv")) %>% 
+  mutate(season= "2016-2017")
+canucks_2018<- read_csv(here("MP_data", "skaters_2017_2018.csv")) %>% 
+  mutate(season= "2017-2018")
+canucks_2019<- read_csv(here("MP_data", "skaters_2018_2019.csv")) %>% 
+  mutate(season= "2018-2019")
+canucks_2020<- read_csv(here("MP_data", "skaters_2019_2020.csv")) %>% 
+  mutate(season= "2019-2020")
+canucks_2021<- read_csv(here("MP_data", "skaters_2020_2021.csv")) %>% 
+  mutate(season= "2020-2021")
+canucks_2022<- read_csv(here("MP_data", "skaters_2021_2022.csv")) %>% 
+  mutate(season= "2021-2022")
+canucks_2023<- read_csv(here("MP_data", "skaters_2022_2023.csv")) %>% 
+  mutate(season= "2022-2023")
+
+
+
+canucks_skater_data<- rbind(canucks_2009, canucks_2010, canucks_2011, canucks_2012, canucks_2013, canucks_2014, canucks_2015, canucks_2016, canucks_2017, canucks_2018, canucks_2019, canucks_2020, canucks_2021, canucks_2022, canucks_2023) %>% 
+  filter(team== "VAN")
+  
+
+
+
+shots_2007<- read_csv(here("MP_data", "CAN_shots_2007.csv"))
+shots_2008<- read_csv(here("MP_data", "CAN_shots_2008.csv"))
+shots_2009<- read_csv(here("MP_data", "CAN_shots_2009.csv"))
+shots_2010<- read_csv(here("MP_data", "CAN_shots_2010.csv"))
+shots_2011<- read_csv(here("MP_data", "CAN_shots_2011.csv"))
+shots_2012<- read_csv(here("MP_data", "CAN_shots_2012.csv"))
+shots_2013<- read_csv(here("MP_data", "CAN_shots_2013.csv"))
+shots_2014<- read_csv(here("MP_data", "CAN_shots_2014.csv"))
+shots_2015<- read_csv(here("MP_data", "CAN_shots_2015.csv"))
+shots_2016<- read_csv(here("MP_data", "CAN_shots_2016.csv"))
+shots_2017<- read_csv(here("MP_data", "CAN_shots_2017.csv"))
+shots_2018<- read_csv(here("MP_data", "CAN_shots_2018.csv"))
+shots_2019<- read_csv(here("MP_data", "CAN_shots_2019.csv"))
+shots_2020<- read_csv(here("MP_data", "CAN_shots_2020.csv"))[, colnames(shots_2019)]
+shots_2021<- read_csv(here("MP_data", "CAN_shots_2021.csv"))
+shots_2022<- read_csv(here("MP_data", "CAN_shots_2022.csv"))
+
+shot_data<- rbind(shots_2009, shots_2010, shots_2011, shots_2012, shots_2013, shots_2014, shots_2015, shots_2016, shots_2017, shots_2018, shots_2019, shots_2020, shots_2021, shots_2022)
+
+canucks_shot_data<- shot_data %>% 
+  filter(homeTeamCode== "VAN" | awayTeamCode == "VAN")
+
+
+file_path <- "/Users/maerennick/GitHub/NHL project/Vancouver_Canucks_Project/MP_data/teams_2007_2016.csv"
+
+teams_2007_2016<- read.csv(file_path)
+
+file_path_2 <- "/Users/maerennick/GitHub/NHL project/Vancouver_Canucks_Project/MP_data/teams_2017.csv"
+
+teams_2017_2023<- read.csv(file_path_2)
+
+nhl_team_data <- rbind(teams_2007_2016, teams_2017_2023)
+
+```
+ 
+
+
+```{r}
+
+## Data Preparation
+
+canucks_data <-  nhl_team_data %>%
+  clean_names() %>% 
+  dplyr::filter(player_team == "VAN") %>% ## include only Vancouver (for and against)
+  select(team:situation, corsi_percentage, ice_time, shots_on_goal_for:rebound_goals_for, penalties_for, penality_minutes_for, x_on_goal_for) %>% 
+  rename(penalties_served= penalties_for) %>%
+  rename(penality_minutes_served= penality_minutes_for) %>% 
+  select(-opposing_team)
+
+
+against_canucks_data<- nhl_team_data %>%
+  clean_names() %>% 
+  dplyr::filter(opposing_team == "VAN") %>% 
+    select(team, game_id, situation, corsi_percentage, ice_time, shots_on_goal_for:rebound_goals_for, penalties_for, penality_minutes_for, x_on_goal_for) %>% 
+  rename(opposing_team= team) %>% 
+  rename(opposing_corsi_percentage= corsi_percentage) %>% 
+  rename(opposing_ice_time= ice_time) %>% 
+  rename(opposing_shots_on_goal= shots_on_goal_for) %>%
+  rename(opposing_missed_shots= missed_shots_for) %>%
+  rename(opposing_blocked_shot_attempts= blocked_shot_attempts_for) %>%
+  rename(opposing_shot_attempts= shot_attempts_for) %>%
+  rename(opposing_goals= goals_for) %>%
+  rename(opposing_rebounds= rebounds_for) %>%
+  rename(opposing_rebound_goals= rebound_goals_for) %>%
+  rename(penalties_drawn= penalties_for) %>%
+  rename(penality_minutes_drawn= penality_minutes_for) %>% 
+  rename(opposing_x_on_goal= x_on_goal_for)
+  
+
+canucks_team_data<- canucks_data %>% 
+  right_join(against_canucks_data, by=c("game_id","situation")) %>% 
+  select(-opposing_shot_attempts) %>% 
+  select(-opposing_rebounds) %>%
+  select(-opposing_x_on_goal) %>%
+  select(-opposing_blocked_shot_attempts) %>%
+  select(-opposing_missed_shots) %>% 
+  filter(situation== "5on5") %>% 
+  group_by(season) %>% 
+  mutate(GP= n_distinct(game_id)) %>% # games played
+  rename(TOI= ice_time) %>% 
+  rename(CF= corsi_percentage) %>% 
+  rename(CA= opposing_corsi_percentage) %>% 
+  rename(GF=goals_for) %>% 
+  rename(GA=opposing_goals) %>% 
+  rename(PENT= penality_minutes_served) %>% 
+  rename(PEND= penality_minutes_drawn) %>% 
+  rename(SHOTS=shots_on_goal_for) %>% 
+  rename(SAVES= blocked_shot_attempts_for) %>% 
+  rename(REB= rebounds_for)
+
+
+canucks_team_data_avg<- canucks_team_data %>% 
+  group_by(season) %>% 
+  summarise(across(where(is.numeric), mean, na.rm = TRUE))
+
+# Print data 
+#kable(canucks_team_data) %>%
+    #kable_styling(bootstrap_options = c('striped', 'hover', 'responsive', 'condensed'))
+
+
+```
+
+
+##### Calculate Z-Scores
+
+1. Adjust all scores by the number of games played due to a shorted 2012-2013 and 2020-2021 seasons
+
+2. Compute z-scores of all measures to facilitate comparisons
+
+```{r}
+canucks_team_data$GP <- as.numeric(canucks_team_data$GP)
+canucks_team_data$season <- as.numeric(canucks_team_data$season)
+
+# Pre-processes, adjusts, and z-scores canucks data ----
+canucks_data_long <- canucks_team_data_avg %>% 
+  dplyr::select( -game_date, -game_id, -opposing_ice_time, -missed_shots_for, -opposing_shots_on_goal,-rebound_goals_for, -missed_shots_for, -x_on_goal_for, -penalties_served, -penalties_drawn, -opposing_rebound_goals, -shot_attempts_for) %>% 
+  gather(Meas, Val, -season, -GP) %>%
+  group_by(Meas) %>%
+  mutate(Val_Adj = Val/GP,               # adjusts based on games played
+         Val_Zscore = scale(Val_Adj)     # computes z-scores
+         ) %>%
+  ungroup() %>%
+  mutate(sig = factor(ifelse(abs(Val_Zscore) > 1.96, "p < .05", "p > .05"))) # z score > 1.96
+
+```
+
+##### Performance across seasons 
+
+```{r}
+ggplot(canucks_data_long, aes(factor(season), Val_Zscore)) +
+  geom_path(aes(group = 1), color = rdgy[8]) +
+  geom_point(aes(color = sig), size = 1.75) +
+  scale_color_manual(values = c(rdgy[3], rdgy[10]), name = "Z-Score") +
+  scale_y_continuous(breaks = c(-2, 0, 2), minor_breaks = NULL) +
+  coord_cartesian(ylim = c(-3,3)) +
+  theme_minimal() + 
+  labs(x = "\n Season", 
+       y = "\n Measurement (Z-Score)",
+       title = "Canucks Performance 2007-2023"
+       ) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom"
+        )+
+  facet_wrap(~Meas, nrow = 5)
+```
+
+
+For the Vancouver Canucks, several performance metrics peaked in 2012 season. The 2012–13 Vancouver Canucks season was the team's 43rd season in the National Hockey League and the Canucks won their fifth-straight Northwest Division title but finished third in the Western Conference. Corsi scores against and the amount of penalties served additionally peaked that year suggesting that they were facing strong competition. The 2020 season was additionally significant. This season was unconventional due to the COVID-19 shutdowns, which is likely why there is no peak in time on ice and could result in false peask due to the few numbers of games that were played. 
+
+##### Correlations
+
+```{r}
+
+# Converts back to wide format
+
+canucks_data_wide <- canucks_team_data %>% 
+  dplyr::select(-team, -name, -player_team, -home_or_away, -game_date, -position, -situation, -opposing_team, -opposing_ice_time, -missed_shots_for, -opposing_shots_on_goal,-rebound_goals_for, -missed_shots_for, -x_on_goal_for, -penalties_served, -penalties_drawn, -opposing_rebound_goals, -shot_attempts_for, -game_id) %>% 
+  group_by(season) %>% 
+  mutate(CF= mean(CF)) %>% 
+  mutate(TOI= mean(TOI)) %>% 
+  mutate(SHOTS= mean(SHOTS)) %>% 
+  mutate(SAVES= mean(SAVES)) %>% 
+  mutate(GF= mean(GF)) %>% 
+  mutate(REB= mean(REB)) %>% 
+  mutate(PENT= mean(PENT)) %>% 
+  mutate(CA= mean(CA)) %>% 
+  mutate(GA= mean(GA)) %>% 
+  mutate(PEND= mean(PEND)) %>% 
+  mutate(GP= mean(GP)) %>% 
+  gather(Meas, Val, -season, -GP) %>%
+  group_by(Meas) %>%
+  mutate(Val_Adj = Val/GP,               # adjusts based on games played
+         Val_Zscore = scale(Val_Adj)     # computes z-scores
+         ) %>%
+  ungroup() %>%
+  mutate(sig = factor(ifelse(abs(Val_Zscore) > 1.96, "p < .05", "p > .05"))) %>%  # z score > 1.96 
+  select(season, Meas, Val_Zscore) %>%
+  unique()%>% 
+  spread(Meas, Val_Zscore)
+
+# Computes correlations
+canucks_cors <- cor(canucks_data_wide)
+
+# Correlations to long format for plotting
+canucks_cors_long <- canucks_cors %>%
+  reshape2::melt() %>%
+  arrange(Var1, Var2)
+
+# Correlation heatmap
+ggplot(canucks_cors_long, aes(x = Var1, y = Var2, fill = value)) +
+  geom_raster() + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title = element_blank()
+        ) +
+  scale_fill_distiller(palette = "GnBu", 
+                       limits = c(-1, 1), 
+                       name = "Correlation"
+                       )
+```
+
+Season has a negative correlation with the number of penalties both drawn and received as well as corsi scores for. This suggests that through time, the Vancouver Canucks have steered away from play that would result in penalties. However, it also suggests that through time, the Canucks are taking less shots on goal and exhibiting less shot strength. There is a noticeable positive correlation between corsi scores and goals, which we would expect to see and time on ice with several of these metrics which we would also expect to see. Noticeably, there is no correlation between penalties taken or drawn and the amount of goals scored, which could explain why Vancouver may have strategically diverted from a rougher style of play. 
+
+
+### Powerplay Analysis
+
+A "powerplay" is a sporting term used to describe a period of play where one team has a numerical advantage in players, usually due to a rule violation by the opposing team. In Hockey, they are considered to be a prime opportunity for scoring. Particularly for the Vancouver Canucks, successful powerplays, resulting in a goal, is considered to be a main reason for the team's success. 
+
+##### Read about: [Five key Canucks are contributing to power play success](https://thecanuckway.com/2019/11/27/five-key-canucks-contributing-powerplay-success/)
+
+To take a deeper look into the success and performance of the Canucks team through time, we will analyze power plays and how goal scoring during power play opportunities have changed through time. 
+
+This is an extension of the work done by [Ekarin Pongpipat & Matthew J. Kmiecik, 2018](https://mattkmiecik.com/posts/post-Multilevel-Modeling-in-R-with-NHL-Power-Play-Data/post-Multilevel-Modeling-in-R-with-NHL-Power-Play-Data.html)
+
+First we will look across the entire NHL:
+
+```{r}
+
+pp<- nhl_team_data %>% 
+  filter(situation == "5on4")
+
+# Initializing variables to store team names
+pacific <- c('S.J', 'CGY', 'L.A', 'ANA', 'EDM', 'VAN', 'ARI')
+central <- c('ATL.WPG', 'NSH', 'STL', 'DAL', 'COL', 'MIN', 'CHI')
+metropolitan <- c('WSH', 'N.J', 'PHI', 'CBJ', 'PIT', 'NYR', 'NYI', 'CAR')
+atlantic <- c('T.B', 'BOS', 'TOR', 'DET', 'MTL', 'FLA', 'OTT', 'BUF')
+
+# Creating a column to identify each team's division
+pp <- pp %>%
+  mutate(
+    division = case_when(
+      pp$team %in% pacific ~ 'Pacific',
+      pp$team %in% central ~ 'Central',
+      pp$team %in% metropolitan ~ 'Metropolitan',
+      pp$team %in% atlantic ~ 'Atlantic')
+    )
+
+divisions <- 
+  data.frame(
+    Pacific = c(pacific, ''),
+    Central = c(central, ''),
+    Metropolitan = metropolitan,
+    Atlantic = atlantic
+    )
+```
+
+##### NHL Divisions
+
+```{r}
+# Prints table
+kable(divisions) %>%
+  kable_styling(bootstrap_options = c('striped', 'hover', 'responsive'))
+
+pp_season<- pp %>% 
+  group_by(team, season) %>% 
+  summarise(games_played= n_distinct(gameId), division, goalsFor= sum(goalsFor))
+```
+
+
+##### Average powerplay goals across divisions
+```{r}
+ggplot(pp_season, aes(season, goalsFor/games_played, group = 1)) +
+  geom_line(aes(group = team, color = division), alpha = 2/3) + 
+  geom_line(stat = 'summary', fun.y = 'mean', size = .9, color = 'red') +
+  scale_color_brewer(palette = 'Blues', direction = -1) +
+  labs(x = 'Season (Start Year)',
+       y = 'Season Power Play Goals (5v4)/ Games Played',
+       caption = 'Each team is a separate line; red line is the average') +
+  guides(color = guide_legend(title = 'Division')) +
+  scale_x_continuous(limits = c(2008, 2022), breaks = c(2008:2022)) +
+  theme_minimal()
+
+
+```
+
+There is a lot of variation across power play success through time across teams and across divisions. On average, success appears to be relatively consistent through time with the exception of the steep dip in the first few seasons. This could be due to improved team strategy, defense and/or goalie ability through time. 
+
+
+#### Model powerplay success through time
+
+This model ignores the conference and division distinction. Each team will be modeled individually using a linear regression to predict powerplay goals per games played as a function of time (across 10 years). There are 30 teams in this dataset. Therefore, 30 distinct linear regressions will be performed; one for each team in the NHL. This allows us account for the variability of power plays within each team.
+
+We’ll use these omnibus estimates to examine all regression models simultaneously via R2 estimates. These allow us to see how much variability in powerplay goals per games played was explained by time:
+
+```{r}
+
+modTeam <-  
+  pp_season %>%
+  ungroup() %>% 
+  nest_by(team) %>%
+  mutate(level1 = list(lm((goalsFor/games_played) ~ season, data = data)))
+
+level1Omni <- 
+  modTeam %>% 
+  summarise(broom::glance(level1)) %>% 
+  ungroup() %>% 
+  mutate(sig = p.value < .05) %>% 
+  filter(team != "LAK", team != "NJD", team != "SEA", team != "SJS", team != "TBL") ## omitting teams that do not have enough data
+
+```
+
+##### Significance of Regressions
+
+```{r}
+# Color palette
+sigColorPal <- brewer.pal(11,'RdGy') # display.brewer.pal(11,'RdGy')
+
+# R^2 Plot
+ggplot(level1Omni, aes(r.squared, reorder(team, r.squared), color = sig)) +
+  geom_point(size = 2) +
+  scale_color_manual(values = sigColorPal[c(9,2)]) +
+  labs(x = 'R-squared', y = 'Team') +
+  guides(color = guide_legend(title = 'p < .05')) +
+  theme_minimal() 
+
+## all but 2 are significantly different from 0
+
+
+```
+
+All but two of the regressions are significant, with Atlanta having the strongest relationship between powerplay success and time. While significant, the Vancouver cnaucks have a lower R^2 value suggesting there is a lot of variability in the data that cannot be explained or predicted by the regression. 
+
+##### Directionality of trends in powerplay success through time across teams
+
+```{r}
+# Extracting level 1 coefficients
+level1Coef <- 
+  modTeam %>% 
+  summarise(broom::tidy(level1)) %>% 
+  ungroup() %>%
+  filter(term == 'season') %>%   # Facilitates plotting
+  mutate(sig = p.value < .05) %>% 
+  filter(team != "LAK", team != "NJD", team != "SEA", team != "SJS", team != "TBL") ## omitting teams that do not have enough data
+
+
+ggplot(level1Coef, aes(estimate, reorder(team, -1*estimate), color = sig)) +
+  geom_point(size = 2) +
+  geom_errorbarh(
+    aes(xmin = estimate - std.error, xmax = estimate + std.error),
+    alpha = 1/2
+    ) +
+  scale_color_manual(values = sigColorPal[c(9,2)]) +
+  labs(
+    x = 'Estimate (Yearly Change in Power Play Goals/Game)', 
+    y = 'Team',
+    caption = 'SEM error bars'
+    ) +
+  guides(color = guide_legend(title = 'p < .05')) +
+  theme_minimal()
+
+```
+
+This figure looks at the directionality of powerplay success through time. Atlanta had the best fitting model and additionally has the most negative correlation, suggesting that there powerplay success has gone down significantly through time. The Vancouver Canucks have one of the shallower rates of change, but exhibit a negative trajectory in powerplay success through time. 
+
+##### Trends in Canucks powerplay success through time
+
+```{r}
+
+model_data <- pp_season %>%
+  filter(team == "VAN") %>% 
+  mutate(goalsFor_per_game = goalsFor / games_played) %>%
+  lm(goalsFor_per_game ~ season, data = .)
+
+model_data <- model_data %>%
+  augment() %>%
+  mutate(fitted_values = .fitted)
+
+ggplot(model_data, aes(x = season, y = goalsFor_per_game)) +
+  geom_point(color = "blue") +  # Data points
+  geom_line(aes(y = fitted_values), color = "darkgreen") +  # Fitted regression line
+  labs(
+       x = "Season",
+       y = "Average Power Play Goals per Game") +
+  theme_minimal()
+```
+
+As predicted by the R^2 value, there is a lot of variation in the data that is not well described by the model. However, we do see a decline in powerplay success on average through time. 
+
+
+### Random Forest: scoring for the Vancouver Canucks
+
+Random Forest is a powerful machine learning algorithm that can be used to predict outcomes, such as whether a goal is scored or not, based on a set of input features or metrics. 
+
+#### Determining the accuracy of the random forest
+
+```{r}
+
+can_shot_data<- shot_data %>% 
+  filter(homeTeamCode=="VAN") %>% 
+  select(goal, season, isHomeTeam, shooterName, period, homeTeamGoals, awayTeamGoals, shotAngleAdjusted, xCordAdjusted, yCordAdjusted, shotDistance, shotType, shotOnEmptyNet, playerPositionThatDidEvent, shooterTimeOnIce)
+
+# Check for missing values in each column
+missing_values <- colSums(is.na(can_shot_data))
+
+# Print columns with missing values
+#print(missing_values[missing_values > 0])
+
+# Remove rows with missing values
+can_shot_data <- na.omit(can_shot_data) ## remvoing NAs --> there is enough data to make up for it
+
+goal_rf<- randomForest::randomForest(as.factor(goal) ~season + isHomeTeam+ period+ homeTeamGoals+ awayTeamGoals+ shotAngleAdjusted+ xCordAdjusted+ yCordAdjusted+ shotDistance+ shotType+ shotOnEmptyNet+ playerPositionThatDidEvent+ shooterTimeOnIce, data= can_shot_data)
+
+goal_rf
+```
+
+##### Importance of parameters in determining goal success 
+
+```{r}
+
+vip_goal_rf<- vip(goal_rf)
+
+vip(goal_rf)
+```
+
+Interestingly, time on ice was the most important determinor in goal success, followed by distance of shot. This suggests that the stamina and/or fatigue of the palyer is even more important than where they are on the ice and how far away they are from the net. 
+
+```{r}
+actual_values <- as.numeric(as.character(can_shot_data$goal))
+predicted_values <- as.numeric(as.character(predict(goal_rf, can_shot_data)))
+
+# Create a data frame to combine actual and predicted values
+data_plot <- data.frame(
+  Values = c("Actual", "Predicted"),
+  Goals = c(sum(actual_values), sum(predicted_values))
+)
+
+# Create the ggplot figure as a grouped bar plot
+ggplot(data_plot, aes(x = Values, y = Goals, fill = Values)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  labs(title = "Actual vs. Predicted - Random Forest",
+       x = "Values",
+       y = "Number of Goals") +
+  scale_fill_manual(values = c("Actual" = "steelblue", "Predicted" = "orange")) +
+  theme_minimal()
+
+```
+
+The amount of actual goals is well reflected by the predictions of the random forrest algorithm.
+
+
+### Best Shooters on the Canucks Ranked
+
+```{r}
+goal_preds<- predict(goal_rf, type= "prob")
+
+goal_preds_joined <- cbind(can_shot_data, goal_preds)
+
+rankings<- goal_preds_joined %>% 
+  mutate(goal_oe = goal- `1`) %>% #goals over expected
+  group_by(shooterName) %>% 
+  summarize(goals_oe_made = sum(goal_oe)) %>% 
+  arrange(-goals_oe_made) %>% 
+  rename("Goals Made Over Expectation" = goals_oe_made) %>% 
+  rename("Shooter Name" = shooterName)
+
+kable(head(rankings)) %>%
+    kable_styling(bootstrap_options = c('striped', 'hover', 'responsive', 'condensed'))
+
+```
+
+

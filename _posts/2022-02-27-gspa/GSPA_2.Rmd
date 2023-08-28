@@ -1,0 +1,17 @@
+---
+title: "Ecological Society of America Honors Grad Student Mae Rennick"
+description: |
+  Rennick has been selected to receive the 2022 Katherine S. McCarter Graduate Student Policy Award from the Ecological Society of America (ESA). 
+author:
+  - name: Mae Rennick
+    url: {https://www.noozhawk.com/article/ecological_society_of_america_honors_grad_student_mae_rennick}
+date: 2022-02-27
+output:
+  distill::distill_article:
+    self_contained: false
+preview: mae_algae.png
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
